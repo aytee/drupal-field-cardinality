@@ -1,0 +1,102 @@
+<?php
+
+/**
+ * Implements hook_field_widget_properties_alter().
+ */
+function field_cardinality_field_widget_properties_alter(&$widget, &$context) {
+  if ($context['field']['cardinality'] == FIELD_CARDINALITY_UNLIMITED) {
+    if (isset($context['instance']['cardinality'])) {
+      $context['field']['cardinality'] = $context['instance']['cardinality'];
+    }
+  }
+}
+
+/**
+ * Implements hook_field_widget_form_alter().
+ */
+function field_cardinality_field_widget_form_alter(&$element, &$form_state, $context) {
+  $instance = $context['instance'];
+
+  if (isset($instance['required_values']) && $instance['required_values'] > 1 && $instance['required']) {
+    if (field_behaviors_widget('multiple values', $instance) == FIELD_BEHAVIOR_DEFAULT) {
+      if ($context['delta'] < $instance['required_values']) {
+        if (isset($element['#type'])) {
+          $element['#required'] = TRUE;
+        }
+        else {
+          foreach (element_children($element) as $column) {
+            if (isset($element[$column]['#required'])) {
+              $element[$column]['#required'] = TRUE;
+            }
+          }
+        }
+      }
+    }
+    else {
+      for ($delta = 0; $delta < $instance['required_values']; $delta++) {
+        if (isset($element[$delta])) {
+          $element[$delta]['#required'] = TRUE;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for field_ui_field_edit_form().
+ */
+function field_cardinality_form_field_ui_field_edit_form_alter(&$form, &$form_state) {
+  $field = $form['#field'];
+  $instance = $form['#instance'];
+
+  $form['instance']['cardinality'] = array(
+    '#title' => t('Maximum number of values'),
+    '#weight' => 200,
+    '#default_value' => isset($instance['cardinality']) ? $instance['cardinality'] : $field['cardinality'],
+    '#states' => array(
+      'visible' => array(
+        '#edit-field-cardinality' => array('value' => FIELD_CARDINALITY_UNLIMITED),
+      ),
+    ),
+  ) + $form['field']['cardinality'];
+
+  $form['instance']['required_values'] = array(
+    '#type' => 'select',
+    '#title' => t('Minimum number of values'),
+    '#options' => drupal_map_assoc(range(0, 10)),
+    '#weight' => 201,
+    '#default_value' => isset($instance['required_values']) ? $instance['required_values'] : 0,
+    '#states' => array(
+      'invisible' => array(
+        'or',
+        array('#edit-field-cardinality' => array('value' => 1)),
+        array('#edit-instance-cardinality' => array('value' => 1)),
+      ),
+    ),
+  );
+
+  array_unshift($form['#submit'], 'field_cardinality_field_ui_field_edit_form_submit');
+}
+
+/**
+ * Submit handler for field_ui_field_edit_form().
+ */
+function field_cardinality_field_ui_field_edit_form_submit($form, &$form_state) {
+  // Only allow instance-specific cardinality if the field allows unlimited.
+  $field_cardinality = $form_state['values']['field']['cardinality'];
+  if ($field_cardinality != FIELD_CARDINALITY_UNLIMITED) {
+    $form_state['values']['instance']['cardinality'] = $field_cardinality;
+  }
+
+  // If the field/instance allows only 1 value, the normal 'required' checkbox will do.
+  if ($form_state['values']['instance']['cardinality'] == 1) {
+    $form_state['values']['instance']['required_values'] = 1;
+  }
+
+  // The # required values of course can't be higher than the # allowed values.
+  if ($form_state['values']['instance']['cardinality'] != FIELD_CARDINALITY_UNLIMITED) {
+    if ($form_state['values']['instance']['required_values'] > $form_state['values']['instance']['cardinality']) {
+      $form_state['values']['instance']['required_values'] = $form_state['values']['instance']['cardinality'];
+    }
+  }
+}

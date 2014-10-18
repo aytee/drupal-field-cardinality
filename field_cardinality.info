@@ -1,0 +1,4 @@
+name = Field cardinality
+description = Adjust field cardinality per instance, not over all fields
+package = Field
+core = 7.x
