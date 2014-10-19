@@ -4,6 +4,10 @@
  * Implements hook_field_widget_properties_alter().
  */
 function field_cardinality_field_widget_properties_alter(&$widget, &$context) {
+  // Core patch test. This won't come through without the patch and we can test for that in
+  // the widget form alter.
+  $context['field']['core_patch_applied'] = TRUE;
+
   if ($context['field']['cardinality'] == FIELD_CARDINALITY_UNLIMITED) {
     if (isset($context['instance']['cardinality'])) {
       $context['field']['cardinality'] = $context['instance']['cardinality'];
@@ -16,6 +20,14 @@ function field_cardinality_field_widget_properties_alter(&$widget, &$context) {
  */
 function field_cardinality_field_widget_form_alter(&$element, &$form_state, $context) {
   $instance = $context['instance'];
+
+  // Test for core patch test from the widget properties alter hook.
+  if (empty($context['field']['core_patch_applied'])) {
+    if (empty($form_state['submitted'])) {
+      drupal_set_message(t("[field_cardinality] You didn't apply the core patch, so you might as well disable this module."), 'warning', FALSE);
+    }
+    return;
+  }
 
   if (isset($instance['required_values']) && $instance['required_values'] > 1 && $instance['required']) {
     if (field_behaviors_widget('multiple values', $instance) == FIELD_BEHAVIOR_DEFAULT) {
