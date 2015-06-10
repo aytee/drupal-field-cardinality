@@ -61,6 +61,11 @@ function field_cardinality_form_field_ui_field_edit_form_alter(&$form, &$form_st
   $field = $form['#field'];
   $instance = $form['#instance'];
 
+  // Field might be locked, eg. commerce_price
+  if (!isset($form['field']['cardinality'])) {
+    return;
+  }
+
   $form['instance']['cardinality'] = array(
     '#title' => t('Maximum number of values'),
     '#weight' => 200,
